@@ -28,6 +28,10 @@ from cryptography.hazmat.primitives.serialization import load_pem_public_key # n
 from cryptography.fernet import Fernet
 #fim imports ex2
 
+from cryptography.exceptions import InvalidSignature
+import warnings
+
+warnings.filterwarnings("ignore")
 
 class Server(threading.Thread):
     def initialise(self, receive):
@@ -98,10 +102,10 @@ class Server(threading.Thread):
                             #verification using load_pem_public_key()
                             print(decodifica_bytes)
                             
-                        elif not decodifica_bytes.startswith(id_ini_chave_publi) and self.chave_simetrica_segundo_cliente is None:
+                        elif not decodifica_bytes.startswith(id_ini_chave_publi) and self.chave_simetrica_destinatario is None:
                             #Nao trocaram chave simetrica ainda
                             # se ainda não tivermos a chave simétrica, então precisamo decriptá-la
-                            self.chave_simetrica_segundo_cliente = self.private_key.decrypt(
+                            self.chave_simetrica_destinatario = self.private_key.decrypt(
                                 chunk,
                                 padding.OAEP(
                                     mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -111,7 +115,7 @@ class Server(threading.Thread):
                             )
                         elif not self.flag_assinatura and self.chave_simetrica_destinatario is not None:
                             try:
-                                self.chave_publica_client_2.verify(
+                                self.chave_publica_segundo_cliente.verify(
                                     chunk,
                                     self.chave_simetrica_destinatario,
                                     padding.PSS(mgf=padding.MGF1(
