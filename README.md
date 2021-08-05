@@ -7,6 +7,7 @@
 * Fazer a troca encriptada de mensagem entre dois clientes
 * Garantir confidencialidade, integridade e autenticidade
 * Implementar algoritmo RSA
+* Transmitir as chaves simétricas usando criptografia assimétrica e verificar integridade e autenticidade das mensagens
 * Interceptar pacotes usando wireshark e comprovar que as mensagens não estão legíveis   
   
 ## Conhecimentos usados
