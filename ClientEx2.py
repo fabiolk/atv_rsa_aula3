@@ -57,23 +57,19 @@ class Server(threading.Thread):
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
-        self.chave_publica_destinatario = None #armazena a chave publica recebida
+        self.chave_publica_destinatario = None 
 
-        self.chave_publica_destinatario_byte = None
+        self.chave_publica_destinatario_byte = None #chave_publica_destinatario serializada para envio
         
-        #self.chave_simetrica_segundo_cliente = None #variavel que armazena a chave simetrica recebida
+        self.flag_chave_pub = False #sinaliza o recebimento da chave publica destinatario
 
-        self.flag_chave_pub = False #variavel que sinaliza o recebimento da chave publica
+        self.flag_assinatura = False #sinaliza o recebimento da assinatura
 
-        self.flag_assinatura = False #variavel para saber se chegou a assinatura
+        self.flag_simetrica = False #sinaliza o recebimento da chave simetrica destinatario
 
-        self.flag_simetrica = False #variavel para saber se ja chegou a chave simetrica
-
-        #self.flag_chave_simetrica = False #variavel que sinaliza o recebimento da chave simetrica
-
-        self.chave_simetrica_remetente = None #variavel que armazena a chave simetrica do client 1
+        self.chave_simetrica_remetente = None
         
-        self.chave_simetrica_destinatario = None #variavel que armazena a chave simetrica do client 2
+        self.chave_simetrica_destinatario = None 
         
         
     def run(self):
