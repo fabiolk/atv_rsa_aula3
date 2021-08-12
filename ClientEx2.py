@@ -1,6 +1,9 @@
 #! /usr/bin/env python
 
-#codigo baseado no site da biblioteca https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#generation
+#codigo baseado na documentação
+#https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#generation
+#https://github.com/grakshith/p2p-chat-pytho
+
 #1 na __name__ == '__main__': instancia a classe Client() e da .start() para chamar def run() de acordo com o que é determinado no metodo threading
 #2 dentro de def run()instancia a classe Server() e chama a função gera_chave_rsa()
 #3 na função gera_chave_rsa() crio a chave privada e depois a publica, serializo a chave publica, crio variaveis de controle 
@@ -8,7 +11,6 @@
 #5 em self.sock.send(srv.public_key_byte) envia a chave publica 1 etapa
 #6 laço while enquanto nao tiver outro cliente conectado
 #
-
 
 #inicio imports ex1
 import socket
@@ -20,28 +22,29 @@ import traceback
 #fim imports ex1
 
 #inicio imports ex2
-from cryptography.hazmat.primitives.asymmetric import rsa #importada na geração de chave privada
+from cryptography.hazmat.primitives.asymmetric import rsa #para gera prived key/public key
 from cryptography.hazmat.primitives import serialization #importada na serialização da chave publica
-from cryptography.hazmat.primitives import hashes #A private key can be used to sign a message. This allows anyone with the public key to verify that the message was created by someone who possesses the corresponding private key.
-from cryptography.hazmat.primitives.asymmetric import padding #A private key can be used to sign a message. This allows anyone with the public key to verify that the message was created by someone who possesses the corresponding private key.
-from cryptography.hazmat.primitives.serialization import load_pem_public_key # necessary to check that the private key associated with a given public key was used to sign that specific message.
+from cryptography.hazmat.primitives import hashes #aplica hash da chave simetrica/também usada para assinar uma mensagem onde quem possui a chave publica confirma a autenticidade
+from cryptography.hazmat.primitives.asymmetric import padding #usado juntamente com o hash
+from cryptography.hazmat.primitives.serialization import load_pem_public_key # usado para na obtenção da public key na verificação
 from cryptography.fernet import Fernet
 #fim imports ex2
 
-from cryptography.exceptions import InvalidSignature
-import warnings
+from cryptography.exceptions import InvalidSignature # If the signature does not validate.
 
-warnings.filterwarnings("ignore")
+import warnings #warnings.filterwarnings(action, message='', category=Warning, module='', lineno=0, append=False)
+warnings.filterwarnings("ignore") #"ignore" never print matching warnings
 
 class Server(threading.Thread):
     def initialise(self, receive):
         self.receive = receive
 
-    def gera_chave_rsa(self): #função para gerar chaves
+    def gera_chave_rsa(self): #função para gerar chaves e variaveis
         #self para acessar as propriedades e metodos de uma instancia
         self.private_key = rsa.generate_private_key(
             #key_size describes how many bits long the key should be.
-            #The public_exponent indicates what one mathematical property of the key generation will be. Unless you have a specific reason to do otherwise, you should always use 65537.
+            #The public_exponent indicates what one mathematical property of the key generation will be.
+            #Unless you have a specific reason to do otherwise, you should always use 65537.
             public_exponent=65537,
             key_size=2048,
         )
@@ -54,19 +57,19 @@ class Server(threading.Thread):
             format=serialization.PublicFormat.SubjectPublicKeyInfo
         )
 
-        self.chave_publica_segundo_cliente = None #armazena a chave publica recebida
+        self.chave_publica_destinatario = None #armazena a chave publica recebida
 
-        self.chave_publica_segundo_cliente_byte = None
+        self.chave_publica_destinatario_byte = None
         
-        self.chave_simetrica_segundo_cliente = None #variavel que armazena a chave simetrica recebida
+        #self.chave_simetrica_segundo_cliente = None #variavel que armazena a chave simetrica recebida
 
         self.flag_chave_pub = False #variavel que sinaliza o recebimento da chave publica
 
         self.flag_assinatura = False #variavel para saber se chegou a assinatura
 
-        self.enviou_sim = False #variavel para saber se ja chegou a chave simetrica
+        self.flag_simetrica = False #variavel para saber se ja chegou a chave simetrica
 
-        self.flag_chave_simetrica = False #variavel que sinaliza o recebimento da chave simetrica
+        #self.flag_chave_simetrica = False #variavel que sinaliza o recebimento da chave simetrica
 
         self.chave_simetrica_remetente = None #variavel que armazena a chave simetrica do client 1
         
@@ -90,21 +93,19 @@ class Server(threading.Thread):
                         id_ini_chave_publi = '-----BEGIN PUBLIC KEY-----'
                         #identificador do inicio da chave publica descerializada
 
-                        if decodifica_bytes.startswith(id_ini_chave_publi) and self.chave_publica_segundo_cliente_byte is None:#ainda nao recebeu chave publica
+                        if decodifica_bytes.startswith(id_ini_chave_publi) and self.chave_publica_destinatario_byte is None:
+                            #recebe a chave pública do servidor central
                             
-                            self.chave_publica_segundo_cliente_byte = chunk
+                            self.chave_publica_destinatario_byte = chunk
                             
-                            self.chave_publica_segundo_cliente = load_pem_public_key(self.chave_publica_segundo_cliente_byte)
-                            # If you have a public key, a message,a signature, and the
-                            #signing algorithm that was used you can check that the private
-                            #key associated with a given public key was used to sign that
-                            #specific message. You can obtain a public key to use in
-                            #verification using load_pem_public_key()
-                            print(decodifica_bytes)
+                            self.chave_publica_destinatario = load_pem_public_key(self.chave_publica_destinatario_byte)
+                            #You can obtain a public key to use in verification using load_pem_public_key()
+                            print('Recebeu a chave publica do destinatario')
                             
                         elif not decodifica_bytes.startswith(id_ini_chave_publi) and self.chave_simetrica_destinatario is None:
-                            #Nao trocaram chave simetrica ainda
-                            # se ainda não tivermos a chave simétrica, então precisamo decriptá-la
+                            #recebe a chave simetrica
+                            
+                            #decripto a mensagem com a minha chave privada
                             self.chave_simetrica_destinatario = self.private_key.decrypt(
                                 chunk,
                                 padding.OAEP(
@@ -113,31 +114,36 @@ class Server(threading.Thread):
                                     label=None)
                                 
                             )
+                            print('Recebeu a chave simetrica do destinatario')
+                            
                         elif not self.flag_assinatura and self.chave_simetrica_destinatario is not None:
+                            #atesto se a chave simetrica nao foi alterada usando a verificação de assinatura
                             try:
-                                self.chave_publica_segundo_cliente.verify(
+                                #If the signature does not match, verify() will raise an InvalidSignature exception.
+                                self.chave_publica_destinatario.verify(
                                     chunk,
                                     self.chave_simetrica_destinatario,
-                                    padding.PSS(mgf=padding.MGF1(
-                                        hashes.SHA256()),
-                                        salt_length=padding.PSS.MAX_LENGTH),
-                                        hashes.SHA256()
-                                    )
+                                    padding.PSS(
+                                        mgf=padding.MGF1(hashes.SHA256()),
+                                        salt_length=padding.PSS.MAX_LENGTH
+                                    ),
+                                    hashes.SHA256()
+                                )
                                 self.flag_assinatura = True
-                                
+                                print('Assinatura da chave simétrica válida!')
                             except InvalidSignature:
                                 print('Assinatura da chave simétrica inválida!')
                                 break
                                                     
                         elif self.flag_assinatura:
-                            
+                            #após todas as verificaçôes de segurança so é necessário criptografar a mensagem com a chave simétrica do destinário
                             f = Fernet(self.chave_simetrica_destinatario)
                             
                             print(f.decrypt(chunk).decode() + "\n>>")
+
+                            self.flag_assinatura = False #sempre verifica se a assinatura simétrica não foi alterada
                             
-                            self.flag_assinatura = False
                             
-                            #print(chunk.decode() + '\n>>')
                 except:
                     traceback.print_exc(file=sys.stdout)
                     break
@@ -148,30 +154,36 @@ class Client(threading.Thread):
         self.sock.connect((host, port))
 
     def client(self, host, port, msg, srv):
-        if not srv.flag_chave_pub and srv.chave_publica_segundo_cliente_byte is not None:
-            
+        
+        if not srv.flag_chave_pub and srv.chave_publica_destinatario_byte is not None:
+            #troca a chave publica entre os clientes
             self.sock.send(srv.public_key_byte)
             srv.flag_chave_pub = True
             time.sleep(0.5)
+            print('Enviou a chave publica do remetente para o servidor central\n')
             
         elif srv.flag_chave_pub:
-            if not srv.enviou_sim:
+            #ja trocou a chave publica
+            if not srv.flag_simetrica:
+                #gera chave simetrica, encripta com a pública do destino e envia
                 srv.chave_simetrica_remetente = Fernet.generate_key()# gera chave simetrica
-
-                chave_simetrica_encriptada = srv.chave_publica_segundo_cliente.encrypt(
-                    #Encryption
-                    srv.chave_simetrica_remetente,
-                    padding.OAEP(mgf=padding.MGF1(
+                
+                chave_simetrica_encriptada = srv.chave_publica_destinatario.encrypt(
+                    #encripta a chave simetrica com a chave publica do destino
+                        srv.chave_simetrica_remetente,
+                        padding.OAEP(mgf=padding.MGF1(
                         algorithm=hashes.SHA256()),
                         algorithm=hashes.SHA256(),
                         label=None)
                     )
                 
-                self.sock.send(chave_simetrica_encriptada) # envia a chave simétrica por um meio não seguro (seguro), porém com a chave encriptada por meio da chave pública do outro cliente
-                srv.flag_chave_simetrica = True
+                self.sock.send(chave_simetrica_encriptada)
+                #envia a chave simétrica por um meio não seguro, porém encriptada com a chave pública do destinatário
+                srv.flag_simetrica = True
                 time.sleep(0.5)
+                print('Encriptou a chave simetrica com a chave publica do destinatario e enviou \n')
                 
-            f = Fernet(srv.chave_simetrica_remetente)#Chave simetrica encryptada
+            f = Fernet(srv.chave_simetrica_remetente)#Chave simetrica
 
             assinatura = srv.private_key.sign(
                 srv.chave_simetrica_remetente,
@@ -179,16 +191,17 @@ class Client(threading.Thread):
                     hashes.SHA256()),
                     salt_length=padding.PSS.MAX_LENGTH),
                     hashes.SHA256()
-                ) # assina a chave simétrica (desencriptada)
+                ) #assina a chave simétrica com a chave privada do remetente
             
             self.sock.send(assinatura)
+            print('Envio a assinatura (assinei o hash da chave simetrica com minha chave privada)\n')
             time.sleep(0.5)
-            mensagem = self.sock.send(f.encrypt(msg))# Mensagem ultimo passo
             
-        #sent = self.sock.send(msg)
-        # print "Sent\n"
+            mensagem = self.sock.send(f.encrypt(msg))#envia a mensagem
+            
 
     def run(self):
+        
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         try:
@@ -205,7 +218,6 @@ class Client(threading.Thread):
         self.connect(host, port)
         print("Connected\n")
         user_name = input("Enter the User Name to be Used\n>>")
-        #user_name = 'f'
         receive = self.sock
         time.sleep(1)
         srv = Server()
@@ -213,13 +225,14 @@ class Client(threading.Thread):
         srv.daemon = True
         print("Starting service")
         srv.gera_chave_rsa()#chama função
-        srv.start()#inicia server
-        self.sock.send(srv.public_key_byte)#passo 1 envia a chave publica para o server
+        print("Gerou chaves RSA")
+        srv.start()
+        self.sock.send(srv.public_key_byte)#envia a chave publica para o server
+        print("Enviou para o servidor a chave publica")
         time.sleep(0.5)
-        while not srv.flag_chave_pub: #enquanto a funcao client tiver outro client
+        while not srv.flag_chave_pub: #enquanto a funcao client não tiver outro client
             time.sleep(0.5)
             self.client(host, port, b'', srv)
-            print("Segundo client conectou")
         while 1:
             # print "Waiting for message\n"
             msg = input('>>')
