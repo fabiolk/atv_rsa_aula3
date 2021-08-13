@@ -4,14 +4,6 @@
 #https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#generation
 #https://github.com/grakshith/p2p-chat-pytho
 
-#1 na __name__ == '__main__': instancia a classe Client() e da .start() para chamar def run() de acordo com o que é determinado no metodo threading
-#2 dentro de def run()instancia a classe Server() e chama a função gera_chave_rsa()
-#3 na função gera_chave_rsa() crio a chave privada e depois a publica, serializo a chave publica, crio variaveis de controle 
-#4 em seguida da start no Server e executa run()
-#5 em self.sock.send(srv.public_key_byte) envia a chave publica 1 etapa
-#6 laço while enquanto nao tiver outro cliente conectado
-#
-
 #inicio imports ex1
 import socket
 import sys
